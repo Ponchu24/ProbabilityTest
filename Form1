@@ -1,0 +1,421 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.IO;
+
+namespace PT1
+{
+    public partial class Form1 : Form
+    {
+        StreamReader Read;
+        Question[] Q; //Массив структур "вопрос". Каждый элемент содержит в себе вопрос и номер верного ответа на него.
+
+
+        //------------------ВАЖНО. ЗДЕСЬ НУЖНО ПРОПИСАТЬ ПУТИ К ФАЙЛАМ!!!!!!!------------------------------------------
+        //Имена файлов с вопросами должны быть "variant1","variant2" и т.д.
+        //Имена файлов с ответами должны быть "variant1answers","variant2answers".
+        //Пример лежит на гите.
+        string sourceQ = "D:/Studio/PT1/"; //Путь к файлам с вопросами.
+        string sourceA = "D:/Studio/PT1/"; //Путь к файлам с ответами
+
+
+        RadioButton[] radioButtons; //Объект - кнопки выбора ответов.
+        Button[] buttons; //Объект - кнопки выбора вариантов.
+        Button nextQButton, previousQButton, endTestButton; //Кнопки След.вопр.,Пред.вопр.,Заверш.тест.
+        Button startAgainButton; //Кнопка "Начать заново".
+        Label chooseVarLabel; //Объект - заголовок "Выберите вариант".
+        Label QBox; //Область с текстом вопроса.
+        Label resBox; //Область с результатами.
+        Label resCountBox; //Область с итоговыми баллами.
+        TabPage tabPage3; //Третья страница.
+        TabPage tabPage2; //Первая страница. (Да, у страниц перепутаны номера. tabPage2 - первая стр. и т.д.).
+        TabPage tabPage1; //Вторая страница. 
+        TabControlWithoutTabs tabControlWithoutTabs1; //Объект tabControl без отображения вкладок aka "Страницы теста".
+
+        string variant; //Содержит в себе выбранный вариант.
+        int num; //Номер нынешнего вопроса.
+        int countOfQuestions; //Количество вопросов в варианте. 
+        int [] result; //Массив с ответами, которые дал пользователь.
+        int maxCountAnsw = 8; //Максимальное количество вариантов ответов.
+        public struct Question
+        {
+            public string question;
+            public string right_answer;
+            //public string[] answers;
+        }
+
+        public void DisableAnswers() 
+        {
+            //После перехода на другой вопрос убирает метки со всех вариантов и скрывает их.
+
+            for (int i = 0; i < maxCountAnsw; i++)
+            {
+                radioButtons[i].Visible = false;
+                radioButtons[i].Checked = false;
+            }
+        }
+
+        public void GetVariant(Question[] q) 
+        {
+            //Загружает в массив вопросов сами вопросы и верные ответы к ним 
+            //из файла, соответствующего варианту.
+
+            try
+            {
+                Read = new StreamReader(sourceQ + variant + ".txt");
+                countOfQuestions = Convert.ToInt32(Read.ReadLine());
+                for (int i = 0; i < countOfQuestions; i++)
+                {
+                    q[i].question = Read.ReadLine();
+                    q[i].right_answer = Read.ReadLine();
+                    //MessageBox.Show(q[i].question);
+                    //MessageBox.Show(q[i].right_answer);
+                }
+                Read.Close();
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Error.");
+                this.Close();
+            }
+        } 
+
+        public void LoadAnswers() 
+        {
+            //Находит в файле, соответствующем варианту, номер нынешнего вопроса - [num] 
+            //и загружает из файла в форму варианты ответов для данного вопроса.
+            try
+            {
+                Read = new StreamReader(sourceA + variant + "answers.txt");
+                string finder = Read.ReadLine();
+                while (finder != "[" + num + "]")
+                {
+                    if (Read.EndOfStream) this.Close();
+                    finder = Read.ReadLine();
+                }
+                int countOfanswers = Convert.ToInt32(Read.ReadLine());
+                for (int i = 0; i < countOfanswers; i++)
+                {
+                    radioButtons[i].Visible = true;
+                    radioButtons[i].Text = Read.ReadLine();
+                }
+                QBox.Text = Q[num].question;
+                Read.Close();
+            }
+            catch (Exception)
+            {
+                MessageBox.Show("Error.");
+                this.Close();
+            }
+        }
+
+        public void GetAnswer()
+        {
+            //Записывает отмеченный вариант в массив ответов.
+
+            for (int i = 0; i < maxCountAnsw; i++)
+            {
+                if (radioButtons[i].Checked) result[num] = i;
+            }
+        }
+
+        public void GetResult()
+        {
+            //Проверяет ответы, считает количество верных, 
+            //выводит на экран Верные/Неверные ответы и общий балл.
+
+            string res = "";
+            int res_count = 0;
+            for (int i = 0; i < countOfQuestions; i++)
+            {
+                //MessageBox.Show(Convert.ToString(result[i]) + Q[i].right_answer);
+                if (result[i] == Convert.ToInt32(Q[i].right_answer)-1)
+                {
+                    res_count++;
+                    res += "Вопрос " + (i + 1) + " - Верно \n";
+                }
+                else
+                    res += "Вопрос " + (i + 1) + " - Неверно \n";
+            }
+            resCountBox.Text = "Итого баллов: " + Convert.ToString(res_count) + " / " + Convert.ToString(countOfQuestions);
+            resBox.Text = res;
+        }
+
+        public void ReloadResult()
+        {
+            //Сбрасывает массив результатов.
+            //Если result[i] = -1, то на i-й вопрос не был дан ответ.
+
+            for (int i = 0; i < 30; i++)
+                result[i] = -1;
+        }
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            this.Text = "Теория вероятностей. Тестирование.";
+            this.Size = new System.Drawing.Size(660,200);
+
+            //----Объект tabControl без отображения вкладок---"Страницы теста"----
+            #region "Страницы"
+            tabControlWithoutTabs1 = new PT1.TabControlWithoutTabs();
+
+            tabPage3 = new System.Windows.Forms.TabPage();
+            tabPage1 = new System.Windows.Forms.TabPage();
+            tabPage2 = new System.Windows.Forms.TabPage();
+            tabControlWithoutTabs1 = new PT1.TabControlWithoutTabs();
+            //tabControlWithoutTabs1.SuspendLayout();
+            //SuspendLayout();
+
+            // tabPage3
+            tabPage3.Location = new System.Drawing.Point(4, 25);
+            tabPage3.Name = "tabPage3";
+            tabPage3.Padding = new System.Windows.Forms.Padding(3);
+            tabPage3.Size = new System.Drawing.Size(681, 428);
+            tabPage3.UseVisualStyleBackColor = true;
+            
+            // tabPage1
+            tabPage1.Location = new System.Drawing.Point(4, 25);
+            tabPage1.Name = "tabPage1";
+            tabPage1.Padding = new System.Windows.Forms.Padding(3);
+            tabPage1.Size = new System.Drawing.Size(681, 428);
+            tabPage1.TabIndex = 0;
+            tabPage1.Text = "tabPage1";
+
+            // tabPage2
+            tabPage2.Location = new System.Drawing.Point(4, 25);
+            tabPage2.Name = "tabPage2";
+            tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            tabPage2.Size = new System.Drawing.Size(681, 428);
+            tabPage2.UseVisualStyleBackColor = true;
+
+            tabControlWithoutTabs1.Controls.Add(this.tabPage2);
+            tabControlWithoutTabs1.Controls.Add(this.tabPage1);
+            tabControlWithoutTabs1.Controls.Add(this.tabPage3);
+            tabControlWithoutTabs1.Location = new System.Drawing.Point(-3, -1);
+            tabControlWithoutTabs1.Name = "tabControlWithoutTabs1";
+            tabControlWithoutTabs1.Size = new System.Drawing.Size(689, 577);
+
+            tabPage2.BackColor = System.Drawing.Color.Gainsboro;
+            tabPage1.BackColor = System.Drawing.Color.Gainsboro;
+            tabPage3.BackColor = System.Drawing.Color.Gainsboro;
+
+            this.Controls.Add(tabControlWithoutTabs1);
+            #endregion
+            //-------------------Кнопка "Начать заново"---------------------------
+            #region "Начать заново"
+            startAgainButton = new System.Windows.Forms.Button();
+
+            startAgainButton.Click += new System.EventHandler(this.startAgainButton_Click);
+
+            startAgainButton.Size = new System.Drawing.Size(200, 50);
+            startAgainButton.Text = "Начать заново";
+            startAgainButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            startAgainButton.Location = new System.Drawing.Point(350, 3);
+
+            tabPage3.Controls.Add(startAgainButton);
+            #endregion
+            //----------Список верных/неверных вопросов, итоговые баллы-----------
+            #region Результаты
+            resBox = new System.Windows.Forms.Label();
+            resCountBox = new System.Windows.Forms.Label();
+
+            resBox.Font = new System.Drawing.Font("Times New Roman", 13.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            resBox.Location = new System.Drawing.Point(6, 3);
+            resBox.Name = "ResBox";
+            resBox.Size = new System.Drawing.Size(283, 349);
+
+            resCountBox.Font = new System.Drawing.Font("Times New Roman", 13.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            resCountBox.Location = new System.Drawing.Point(350, 63);
+            resCountBox.Name = "ResCountBox";
+            resCountBox.Size = new System.Drawing.Size(386, 61);
+
+            tabPage3.Controls.Add(resBox);
+            tabPage3.Controls.Add(resCountBox);
+            #endregion
+            //---------------Кнопки След.вопр.,Пред.вопр.,Заверш.тест-------------
+            #region След.Пред.Заверш.
+            previousQButton = new System.Windows.Forms.Button();
+            nextQButton = new System.Windows.Forms.Button();
+            endTestButton = new System.Windows.Forms.Button();
+
+            previousQButton.Size = new System.Drawing.Size(206, 50);
+            nextQButton.Size = new System.Drawing.Size(200, 50);
+            endTestButton.Size = new System.Drawing.Size(200, 50);
+
+            previousQButton.Location = new System.Drawing.Point(16, 510);
+            nextQButton.Location = new System.Drawing.Point(246, 510);
+            endTestButton.Location = new System.Drawing.Point(476, 510);
+
+            previousQButton.Text = "Предыдущий вопрос";
+            nextQButton.Text = "Следующий вопрос";
+            endTestButton.Text = "Завершить тест";
+
+            nextQButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            previousQButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            endTestButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            
+            nextQButton.Click += new System.EventHandler(this.nextQButton_Click);
+            previousQButton.Click += new System.EventHandler(this.previousQButton_Click);
+            endTestButton.Click += new System.EventHandler(this.endTestButton_Click);
+
+            tabPage1.Controls.Add(nextQButton);
+            tabPage1.Controls.Add(previousQButton);
+            tabPage1.Controls.Add(endTestButton);
+            #endregion
+            //---------------Окно с текстом вопроса-------------------------------
+            #region Текст вопроса
+            QBox = new System.Windows.Forms.Label();
+            QBox.AutoSize = false;
+            QBox.Font = new System.Drawing.Font("Times New Roman", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            QBox.Location = new System.Drawing.Point(11, 13);
+            QBox.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+            QBox.Size = new System.Drawing.Size(658, 128);
+            tabPage1.Controls.Add(QBox);
+            #endregion
+            //---------------Заголовок выбора вариантов---------------------------
+            #region "Выберите вариант"
+            chooseVarLabel = new System.Windows.Forms.Label();
+            chooseVarLabel.Text = "Выберите вариант.";
+            chooseVarLabel.Font = new System.Drawing.Font("Times New Roman", 16.2F, System.Drawing.FontStyle.Underline, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            chooseVarLabel.Location = new System.Drawing.Point(215,6);
+            chooseVarLabel.AutoSize = true;
+            tabPage2.Controls.Add(chooseVarLabel);
+            #endregion
+            //--------------Создание кнопок выбора варианта-----------------------
+            #region Кнопки выбора варианта
+            //Button.Click += new System.EventHandler(this.ChooseVariant);
+            int placeButtonF = 0;
+            int placeButtonS = 50;
+            buttons = new System.Windows.Forms.Button[10];
+            for (int i = 0; i < 10; ++i)
+            {
+                buttons[i] = new Button();
+                buttons[i].Text = "Вариант #"+(i+1);
+                buttons[i].Name = "variant" + (i+1);
+                buttons[i].Location = new System.Drawing.Point(11 + placeButtonF * 126, placeButtonS);
+                placeButtonF++;
+                if (placeButtonF % 5 == 0) { placeButtonF = 0; placeButtonS += 40; }
+                buttons[i].Font = new System.Drawing.Font("Times New Roman", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                buttons[i].Size = new System.Drawing.Size(120, 32);
+                buttons[i].Click += new System.EventHandler(this.ChooseVariant);
+                tabPage2.Controls.Add(buttons[i]);
+            }
+            #endregion
+            //--------------Создание кнопок выбора ответа-------------------------
+            #region Кнопки выбора ответа
+            placeButtonF = 38;
+            placeButtonS = 0;
+            radioButtons = new System.Windows.Forms.RadioButton[maxCountAnsw];
+            for (int i = 0; i < maxCountAnsw; ++i)
+            {
+                radioButtons[i] = new RadioButton();
+                radioButtons[i].Text = "radioButton1";
+                radioButtons[i].Location = new System.Drawing.Point(placeButtonF, 148 + placeButtonS * 90);
+                placeButtonS++;
+                if (placeButtonS % 4 == 0) { placeButtonS = 0; placeButtonF += 320; }
+                radioButtons[i].Font = new System.Drawing.Font("Times New Roman", 13.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+                radioButtons[i].Size = new System.Drawing.Size(320, 90);
+                radioButtons[i].Visible = false;
+                tabPage1.Controls.Add(radioButtons[i]);
+            }
+            #endregion
+            //--------------------------------------------------------------------
+            Q = new Question[30]; //Массив вопросов.
+            result = new int[30]; //Массив ответов, данных пользователем.
+            ReloadResult();
+        }
+
+        private void ChooseVariant(object sender, EventArgs e)
+        {
+            //Обработчик события нажатия на кнопку выбора варианта.
+            //Записывает выбранный вариант в variant. Вызывает ф-ию для загрузки данного варианта.
+            //Переводит тест на следующую страницу. (Со страницы выбора вариантов на страницу самого теста).
+
+            Button p = (Button)sender; //Помещает в p кнопку варианта, которая была нажата.
+            DisableAnswers();
+            tabControlWithoutTabs1.SelectedIndex = 1; //Переход на страинцу теста.
+            variant = p.Name; //Помещает в variant "Имя" нынешнего варианта.
+            GetVariant(Q);
+            num = 0; //Номер вопроса = 0. (Т.е. нумерация вопросов идёт с нуля).
+            LoadAnswers();
+            previousQButton.Visible = false; //Отключает кнопку "Пред.вопр.", т.к. на первом вопросе нельзя вернуться на предыдущий.
+            nextQButton.Visible = true; //Включает кнопку "След.вопр.".
+            this.Size = new System.Drawing.Size(700, 620); //Меняет размер окна.
+
+        }
+
+        private void startAgainButton_Click(object sender, EventArgs e)
+        {
+            //Обработчик события нажатия на кнопку "Начать заново".
+            //Переводит на первую страницу с выбором варианта.
+
+            ReloadResult();
+            this.Size = new System.Drawing.Size(660, 200);
+            tabControlWithoutTabs1.SelectedIndex = 0;
+        }
+
+        private void endTestButton_Click(object sender, EventArgs e)
+        {
+            //Обработчик события нажатия на кнопку "Завершить тест". 
+            //Переводит тест на следующую страницу. (Со страницы самого теста на страницу результатов).
+
+            GetAnswer(); //Сохраняет предыдущий ответ.
+            GetResult(); //Загружает результат.
+
+            //MessageBox.Show(Convert.ToString(countOfQuestions));
+            this.Size = new System.Drawing.Size(600, 70 + countOfQuestions*27);
+            tabControlWithoutTabs1.SelectedIndex = 2; //Переход на страницу результатов.
+        }
+
+        private void nextQButton_Click(object sender, EventArgs e)
+        {
+            //Обработчик события нажатия на кнопку "Следующий вопрос".
+            //Загружает следующий вопрос.
+
+            GetAnswer(); //Сохраняет предыдущий ответ.
+            DisableAnswers(); //Сбрасывает ответы.
+
+            num++; //Номер вопроса увеличивается на 1.
+            if (result[num] != -1) radioButtons[result[num]].Checked = true; //Если на вопрос уже был дан ответ, этот ответ отмечается.
+            LoadAnswers();
+            if (num >= 1) previousQButton.Visible = true; //Если это не первый (нулевой) вопрос, то включает кнопку "Пред.вопр.".
+            if (num == countOfQuestions-1) nextQButton.Visible = false; //Если это последний вопрос, то отключает кнопку "След.вопр.".
+        }
+
+        private void previousQButton_Click(object sender, EventArgs e)
+        {
+            //Обработчик события нажатия на кнопку "Предыдущий вопрос".
+            //Загружает предыдущий вопрос.
+
+            GetAnswer(); //Сохраняет предыдущий ответ.
+            DisableAnswers(); //Сбрасывает ответы.
+
+            num--; //Номер вопроса уменьшается на 1.
+            if (result[num] != -1) radioButtons[result[num]].Checked = true; //Если на вопрос уже был дан ответ, этот ответ отмечается.
+            LoadAnswers(); 
+            if (num == 0) previousQButton.Visible = false; //Если это первый вопрос, то отключает кнопку "Пред.вопр.".
+            if (num <= countOfQuestions - 2) nextQButton.Visible = true; //Если это не последний вопрос, включает кнопку "След.вопр".
+        }
+    }
+    class TabControlWithoutTabs : TabControl 
+    {
+        //Штука, которая добавляет объект tabControl без отображения вкладок.
+        //Через неё реализованы "страницы".
+        protected override void WndProc(ref Message m)
+        {
+            if (m.Msg == 0x1328 && !DesignMode) m.Result = (IntPtr)1;
+            else base.WndProc(ref m);
+        }
+    }
+}
